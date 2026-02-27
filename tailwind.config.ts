@@ -13,6 +13,10 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        display: ['"Plus Jakarta Sans"', 'sans-serif'],
+        body: ['Inter', 'sans-serif'],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -46,6 +50,15 @@ export default {
         card: {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
+        },
+        star: {
+          empty: "hsl(var(--star-empty))",
+          filled: "hsl(var(--star-filled))",
+          hover: "hsl(var(--star-hover))",
+        },
+        survey: {
+          progress: "hsl(var(--survey-progress))",
+          bg: "hsl(var(--survey-bg))",
         },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
