@@ -14,7 +14,65 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      events: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          title: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          title?: string
+        }
+        Relationships: []
+      }
+      survey_responses: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          ratings: Json
+          suggestion: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          ratings?: Json
+          suggestion?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          ratings?: Json
+          suggestion?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "survey_responses_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
