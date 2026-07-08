@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import StarRating from "@/components/StarRating";
-import VoiceInput from "@/components/VoiceInput";
+import { Textarea } from "@/components/ui/textarea";
 import {
   PRE_EVENT_COMMENT_KEY,
   PRE_EVENT_RATING_KEY,
@@ -351,10 +351,11 @@ const SurveyPage = () => {
             </div>
 
             <div className="mt-8 text-left">
-              <VoiceInput
+              <Textarea
                 value={preComment}
-                onChange={setPreComment}
+                onChange={(event) => setPreComment(event.target.value)}
                 placeholder={preSurveyPrompt.placeholder}
+                className="min-h-[100px]"
               />
             </div>
 
@@ -492,9 +493,14 @@ const SurveyPage = () => {
             <>
               <span className="text-xs font-body uppercase tracking-[0.3em] text-secondary font-bold mb-3">Almost Done</span>
               <h2 className="text-2xl sm:text-3xl font-display font-bold text-foreground mb-3 leading-snug max-w-md">Any suggestions for improvement?</h2>
-              <p className="text-muted-foreground font-body text-sm mb-8">Type or use voice input to share your thoughts.</p>
+              <p className="text-muted-foreground font-body text-sm mb-8">Type your thoughts below.</p>
               <div className="w-full max-w-md">
-                <VoiceInput value={suggestion} onChange={setSuggestion} placeholder="What can be improved for future activities?" />
+                <Textarea
+                  value={suggestion}
+                  onChange={(event) => setSuggestion(event.target.value)}
+                  placeholder="What can be improved for future activities?"
+                  className="min-h-[100px]"
+                />
               </div>
             </>
           )}
