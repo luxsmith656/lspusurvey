@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,42 +6,42 @@
 
 @layer base {
   :root {
-    --background: 210 20% 98%;
-    --foreground: 220 25% 10%;
+    --background: 39 48% 94%;
+    --foreground: 219 63% 13%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 220 25% 10%;
+    --card: 39 58% 96%;
+    --card-foreground: 219 63% 13%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 220 25% 10%;
+    --popover: 39 58% 96%;
+    --popover-foreground: 219 63% 13%;
 
-    --primary: 210 70% 35%;
+    --primary: 219 73% 18%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 45 90% 55%;
-    --secondary-foreground: 220 25% 10%;
+    --secondary: 38 74% 48%;
+    --secondary-foreground: 219 63% 13%;
 
-    --muted: 210 15% 92%;
-    --muted-foreground: 220 10% 45%;
+    --muted: 39 25% 88%;
+    --muted-foreground: 220 16% 37%;
 
-    --accent: 160 50% 40%;
+    --accent: 152 30% 34%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 210 15% 88%;
-    --input: 210 15% 88%;
-    --ring: 210 70% 35%;
+    --border: 38 35% 73%;
+    --input: 38 35% 73%;
+    --ring: 38 74% 48%;
 
-    --radius: 0.75rem;
+    --radius: 0.5rem;
 
-    --star-empty: 210 15% 85%;
-    --star-filled: 45 95% 55%;
-    --star-hover: 45 95% 48%;
+    --star-empty: 39 18% 74%;
+    --star-filled: 40 91% 54%;
+    --star-hover: 38 80% 45%;
 
-    --survey-progress: 210 70% 35%;
-    --survey-bg: 210 25% 96%;
+    --survey-progress: 38 74% 48%;
+    --survey-bg: 39 48% 94%;
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
@@ -117,6 +117,313 @@
   }
   .font-body {
     font-family: 'Inter', sans-serif;
+  }
+  .font-ceremonial {
+    font-family: 'Cormorant Garamond', serif;
+  }
+}
+
+.gawad-page {
+  --gawad-bg: none;
+  min-height: 100vh;
+  min-height: 100svh;
+  position: relative;
+  isolation: isolate;
+  overflow-x: hidden;
+  background: #061535;
+}
+
+.gawad-page > header,
+.gawad-page > main,
+.gawad-page > footer {
+  position: relative;
+  z-index: 1;
+}
+
+.gawad-page::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background-image:
+    linear-gradient(115deg, rgba(6, 21, 53, 0.94) 0%, rgba(246, 234, 213, 0.88) 40%, rgba(246, 234, 213, 0.76) 60%, rgba(6, 21, 53, 0.95) 100%),
+    var(--gawad-bg);
+  background-size: cover;
+  background-position: center;
+}
+
+.gawad-main-open::before {
+  background-image:
+    linear-gradient(115deg, rgba(6, 21, 53, 0.98) 0%, rgba(246, 234, 213, 0.9) 38%, rgba(250, 239, 218, 0.82) 58%, rgba(6, 21, 53, 0.96) 100%),
+    var(--gawad-bg);
+}
+
+.gawad-page::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    repeating-linear-gradient(135deg, rgba(190, 128, 31, 0.16) 0 1px, transparent 1px 18px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(6, 21, 53, 0.12));
+}
+
+.gawad-panel {
+  background:
+    linear-gradient(180deg, rgba(255, 250, 240, 0.97), rgba(246, 234, 213, 0.94));
+  border: 1px solid rgba(190, 128, 31, 0.48);
+  border-radius: 8px;
+  box-shadow: 0 24px 80px rgba(4, 13, 32, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.78);
+}
+
+.gawad-grand-panel {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(213, 163, 63, 0.62);
+}
+
+.gawad-grand-panel::before,
+.gawad-grand-panel::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  border: 1px solid rgba(183, 122, 27, 0.26);
+  inset: 10px;
+  border-radius: 8px;
+}
+
+.gawad-grand-panel::after {
+  inset: 18px;
+  border-color: rgba(6, 21, 53, 0.12);
+}
+
+.gawad-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-weight: 700;
+  color: #061535;
+  letter-spacing: 0;
+}
+
+.gawad-script {
+  font-family: 'Cormorant Garamond', serif;
+  font-style: italic;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.gawad-ribbon {
+  width: 100%;
+  max-width: 34rem;
+  border: 1px solid rgba(213, 163, 63, 0.72);
+  background: #061535;
+  color: #fff8eb;
+  padding: 1rem 1.25rem;
+  border-radius: 8px;
+  box-shadow: 0 14px 34px rgba(6, 21, 53, 0.22);
+}
+
+.gawad-header {
+  min-height: 56px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: rgba(6, 21, 53, 0.92);
+  border-bottom: 1px solid rgba(213, 163, 63, 0.42);
+  backdrop-filter: blur(10px);
+}
+
+.gawad-footer {
+  padding: 0.9rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  background: rgba(6, 21, 53, 0.92);
+  border-top: 1px solid rgba(213, 163, 63, 0.42);
+  backdrop-filter: blur(10px);
+}
+
+.gawad-stat {
+  min-width: 5.25rem;
+  border: 1px solid rgba(190, 128, 31, 0.36);
+  border-radius: 8px;
+  padding: 0.8rem 0.9rem;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.gawad-stat p {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-weight: 800;
+  font-size: 1.7rem;
+  line-height: 1;
+  color: #061535;
+}
+
+.gawad-stat span {
+  display: block;
+  margin-top: 0.35rem;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.72rem;
+  color: hsl(var(--muted-foreground));
+}
+
+.gawad-tabs {
+  height: auto;
+  width: 100%;
+  justify-content: flex-start;
+  gap: 0.4rem;
+  border: 1px solid rgba(213, 163, 63, 0.42);
+  background: rgba(6, 21, 53, 0.84);
+  border-radius: 8px;
+  padding: 0.35rem;
+}
+
+.gawad-tabs [data-state="active"] {
+  background: hsl(var(--secondary));
+  color: hsl(var(--secondary-foreground));
+}
+
+.gawad-qr-frame {
+  min-height: 240px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(183, 122, 27, 0.48);
+  border-radius: 8px;
+  padding: 1rem;
+  background:
+    linear-gradient(145deg, rgba(255, 248, 235, 0.96), rgba(229, 203, 151, 0.7)),
+    repeating-linear-gradient(45deg, rgba(6, 21, 53, 0.06) 0 1px, transparent 1px 12px);
+  box-shadow: inset 0 0 0 8px rgba(6, 21, 53, 0.06), 0 18px 45px rgba(6, 21, 53, 0.18);
+}
+
+.gawad-qr-frame img {
+  width: min(220px, 100%);
+  height: auto;
+  border-radius: 6px;
+}
+
+.gawad-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: fit-content;
+  border-radius: 999px;
+  border: 1px solid rgba(183, 122, 27, 0.4);
+  background: rgba(255, 248, 235, 0.88);
+  color: #061535;
+  padding: 0.35rem 0.65rem;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.gawad-status-open {
+  border-color: rgba(47, 105, 82, 0.5);
+  background: rgba(216, 238, 226, 0.9);
+  color: #1f513c;
+}
+
+.organization-page {
+  min-height: 100vh;
+  min-height: 100svh;
+  position: relative;
+  isolation: isolate;
+  overflow-x: hidden;
+  background: linear-gradient(135deg, #f8f1e3 0%, #fffaf0 48%, #ecddb9 100%);
+}
+
+.organization-page > header,
+.organization-page > main,
+.organization-page > footer {
+  position: relative;
+  z-index: 1;
+}
+
+.organization-card {
+  background: rgba(255, 252, 246, 0.97);
+  border: 1px solid rgba(183, 122, 27, 0.26);
+  border-radius: 8px;
+  box-shadow: 0 18px 54px rgba(6, 21, 53, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.82);
+}
+
+.organization-header,
+.organization-footer {
+  min-height: 56px;
+  padding: 0.7rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: #061535;
+  border-color: rgba(213, 163, 63, 0.42);
+}
+
+.organization-header {
+  border-bottom: 1px solid rgba(213, 163, 63, 0.42);
+}
+
+.organization-footer {
+  border-top: 1px solid rgba(213, 163, 63, 0.42);
+}
+
+.organization-logo-mark,
+.lspu-logo-mark {
+  width: 5rem;
+  height: 5rem;
+  padding: 0.25rem;
+  border-radius: 999px;
+  background: #fffaf0;
+  border: 1px solid rgba(213, 163, 63, 0.72);
+  box-shadow: 0 12px 30px rgba(6, 21, 53, 0.16);
+}
+
+.lspu-logo-mark {
+  width: 4rem;
+  height: 4rem;
+}
+
+.offline-pill {
+  width: fit-content;
+  border: 1px solid rgba(183, 122, 27, 0.34);
+  border-radius: 999px;
+  background: rgba(255, 248, 235, 0.9);
+  color: #061535;
+  padding: 0.38rem 0.75rem;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+@media (max-width: 700px) {
+  .gawad-panel {
+    box-shadow: 0 16px 44px rgba(4, 13, 32, 0.28), inset 0 1px 0 rgba(255, 255, 255, 0.76);
+  }
+
+  .gawad-grand-panel::before {
+    inset: 7px;
+  }
+
+  .gawad-grand-panel::after {
+    inset: 13px;
+  }
+
+  .gawad-ribbon {
+    max-width: 100%;
+    padding: 0.75rem 0.9rem;
+  }
+
+  .gawad-header,
+  .gawad-footer {
+    padding: 0.6rem 0.75rem;
+  }
+
+  .organization-header,
+  .organization-footer {
+    padding: 0.6rem 0.75rem;
   }
 }
 
