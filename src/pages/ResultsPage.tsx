@@ -1,10 +1,24 @@
-import { useState, useEffect, type CSSProperties } from "react";
+import { useState, useEffect, useMemo, useRef, type CSSProperties } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Download, MessageSquareText, Star, WandSparkles } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { ArrowLeft, Download, FileSpreadsheet, MessageSquareText, Star, WandSparkles } from "lucide-react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+  PieChart,
+  Pie,
+  Legend,
+  LineChart,
+  Line,
+} from "recharts";
 import {
   PRE_EVENT_COMMENT_KEY,
   PRE_EVENT_RATING_KEY,
@@ -15,6 +29,12 @@ import {
 import { APP_NAME } from "@/lib/eventSettings";
 import lspuLogo from "@/assets/lspu-logo.jpg";
 import gawadPubmat from "@/assets/gawad-pubmat.png";
+import {
+  captureChartSvg,
+  exportEvaluationXlsx,
+  exportPreEventXlsx,
+} from "@/lib/exportResultsXlsx";
+import { toast } from "sonner";
 
 interface SurveyResponse {
   id: string;
@@ -66,6 +86,15 @@ const ResultsPage = () => {
   const [eventTitle, setEventTitle] = useState("");
   const [responses, setResponses] = useState<SurveyResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState<"pre" | "eval" | null>(null);
+
+  // Refs to chart containers so we can capture their SVGs for Excel export
+  const evalAvgRef = useRef<HTMLDivElement | null>(null);
+  const evalDistRef = useRef<HTMLDivElement | null>(null);
+  const evalTimelineRef = useRef<HTMLDivElement | null>(null);
+  const evalCategoryRef = useRef<HTMLDivElement | null>(null);
+  const preDistRef = useRef<HTMLDivElement | null>(null);
+  const preTimelineRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -119,6 +148,71 @@ const ResultsPage = () => {
     ? Math.round((ratedPreAnswers.reduce((sum, answer) => sum + answer.firstImpressionRating, 0) / ratedPreAnswers.length) * 100) / 100
     : 0;
 
+  // Distribution of star ratings across all evaluation answers
+  const evalDistributionData = useMemo(() => {
+    const counts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    evaluationResponses.forEach((r) => {
+      surveyQuestions.forEach((q) => {
+        const val = Number(r.ratings?.[q.id] || 0);
+        if (val >= 1 && val <= 5) counts[val] += 1;
+      });
+    });
+    return [1, 2, 3, 4, 5].map((n) => ({ name: `${n}★`, value: counts[n] }));
+  }, [evaluationResponses]);
+
+  // Average rating per category
+  const evalCategoryData = useMemo(() => {
+    const buckets: Record<string, { total: number; count: number }> = {};
+    evaluationResponses.forEach((r) => {
+      surveyQuestions.forEach((q) => {
+        const v = Number(r.ratings?.[q.id] || 0);
+        if (v > 0) {
+          const b = buckets[q.category] || (buckets[q.category] = { total: 0, count: 0 });
+          b.total += v;
+          b.count += 1;
+        }
+      });
+    });
+    return Object.entries(buckets).map(([category, b]) => ({
+      category,
+      average: b.count ? Math.round((b.total / b.count) * 100) / 100 : 0,
+    }));
+  }, [evaluationResponses]);
+
+  // Responses per day (evaluation)
+  const evalTimelineData = useMemo(() => {
+    const map: Record<string, number> = {};
+    evaluationResponses.forEach((r) => {
+      const d = new Date(r.created_at).toLocaleDateString();
+      map[d] = (map[d] || 0) + 1;
+    });
+    return Object.entries(map)
+      .map(([date, count]) => ({ date, count }))
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }, [evaluationResponses]);
+
+  // Pre-event star distribution
+  const preDistributionData = useMemo(() => {
+    const counts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    preAnswers.forEach((a) => {
+      if (a.firstImpressionRating >= 1 && a.firstImpressionRating <= 5) {
+        counts[a.firstImpressionRating] += 1;
+      }
+    });
+    return [1, 2, 3, 4, 5].map((n) => ({ name: `${n}★`, value: counts[n] }));
+  }, [preAnswers]);
+
+  // Pre-event responses per day
+  const preTimelineData = useMemo(() => {
+    const map: Record<string, number> = {};
+    preAnswers.forEach((a) => {
+      map[a.date] = (map[a.date] || 0) + 1;
+    });
+    return Object.entries(map)
+      .map(([date, count]) => ({ date, count }))
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }, [preAnswers]);
+
   const exportEvaluationCSV = () => {
     const headers = ["Response #", "Date", ...surveyQuestions.map((q) => q.question), "Suggestion"];
     const rows = evaluationResponses.map((r, i) => [
@@ -160,6 +254,49 @@ const ResultsPage = () => {
   };
 
   const barColors = ["#08245a", "#b77a1b", "#0d3c76", "#d5a33f", "#123c63", "#8f6018", "#1f5c8d", "#c9902f", "#061535", "#e0b65b"];
+  const distributionColors = ["#c53030", "#dd6b20", "#d69e2e", "#38a169", "#2b6cb0"];
+
+  const handleExportEvaluationXlsx = async () => {
+    try {
+      setExporting("eval");
+      const [avgChart, distChart, timelineChart, categoryChart] = await Promise.all([
+        captureChartSvg(evalAvgRef.current, "Average Rating per Question"),
+        captureChartSvg(evalDistRef.current, "Rating Distribution"),
+        captureChartSvg(evalTimelineRef.current, "Responses Over Time"),
+        captureChartSvg(evalCategoryRef.current, "Average by Category"),
+      ]);
+      const charts = [avgChart, distChart, timelineChart, categoryChart].filter(
+        (c): c is NonNullable<typeof c> => c !== null,
+      );
+      await exportEvaluationXlsx({ eventTitle, evaluationResponses, charts });
+      toast.success("Excel report downloaded");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to export Excel report");
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const handleExportPreEventXlsx = async () => {
+    try {
+      setExporting("pre");
+      const [distChart, timelineChart] = await Promise.all([
+        captureChartSvg(preDistRef.current, "Pre-Event Rating Distribution"),
+        captureChartSvg(preTimelineRef.current, "Pre-Event Responses Over Time"),
+      ]);
+      const charts = [distChart, timelineChart].filter(
+        (c): c is NonNullable<typeof c> => c !== null,
+      );
+      await exportPreEventXlsx({ eventTitle, preAnswers, charts });
+      toast.success("Excel report downloaded");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to export Excel report");
+    } finally {
+      setExporting(null);
+    }
+  };
 
   if (loading) {
     return (
