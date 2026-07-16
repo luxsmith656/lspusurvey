@@ -364,15 +364,68 @@ const ResultsPage = () => {
                     {preResponses.length} responses - average {preAverage || 0} / 5
                   </p>
                 </div>
-                <Button variant="outline" size="sm" onClick={exportPreEventCSV} className="gap-1 text-xs font-body border-primary/40 text-primary hover:bg-primary hover:text-primary-foreground">
-                  <Download size={14} /> Export CSV
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" size="sm" onClick={exportPreEventCSV} className="gap-1 text-xs font-body border-primary/40 text-primary hover:bg-primary hover:text-primary-foreground">
+                    <Download size={14} /> CSV
+                  </Button>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={handleExportPreEventXlsx}
+                    disabled={exporting === "pre" || preAnswers.length === 0}
+                    className="gap-1 text-xs font-body bg-primary text-primary-foreground hover:bg-primary/90"
+                  >
+                    <FileSpreadsheet size={14} />
+                    {exporting === "pre" ? "Exporting..." : "Excel + Charts"}
+                  </Button>
+                </div>
               </div>
 
               {preAnswers.length === 0 ? (
                 <p className="text-muted-foreground font-body text-sm text-center py-8">No pre-event responses yet.</p>
               ) : (
-                <div className="space-y-4 max-h-[520px] overflow-y-auto pr-1">
+                <>
+                  <div className="grid md:grid-cols-2 gap-5 mb-6">
+                    <div>
+                      <h3 className="text-sm font-display font-bold text-foreground mb-2">Rating Distribution</h3>
+                      <div ref={preDistRef}>
+                        <ResponsiveContainer width="100%" height={240}>
+                          <PieChart>
+                            <Pie
+                              data={preDistributionData}
+                              dataKey="value"
+                              nameKey="name"
+                              cx="50%"
+                              cy="50%"
+                              outerRadius={80}
+                              label
+                            >
+                              {preDistributionData.map((_, idx) => (
+                                <Cell key={idx} fill={distributionColors[idx]} />
+                              ))}
+                            </Pie>
+                            <Tooltip />
+                            <Legend />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-display font-bold text-foreground mb-2">Responses Over Time</h3>
+                      <div ref={preTimelineRef}>
+                        <ResponsiveContainer width="100%" height={240}>
+                          <LineChart data={preTimelineData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                            <XAxis dataKey="date" tick={{ fontSize: 11, fontFamily: "Inter" }} stroke="hsl(var(--muted-foreground))" />
+                            <YAxis allowDecimals={false} tick={{ fontSize: 11, fontFamily: "Inter" }} stroke="hsl(var(--muted-foreground))" />
+                            <Tooltip />
+                            <Line type="monotone" dataKey="count" stroke="#08245a" strokeWidth={2} dot={{ r: 3 }} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-4 max-h-[520px] overflow-y-auto pr-1">
                   {preAnswers.map((answer, i) => (
                     <article key={`${answer.date}-${i}`} className="border border-secondary/30 bg-white/70 rounded-lg p-4">
                       <div className="flex items-center gap-2 text-secondary font-body text-xs uppercase tracking-[0.18em] font-bold">
@@ -395,7 +448,8 @@ const ResultsPage = () => {
                       </div>
                     </article>
                   ))}
-                </div>
+                  </div>
+                </>
               )}
             </section>
           </TabsContent>
@@ -422,13 +476,26 @@ const ResultsPage = () => {
             <section className="gawad-panel p-5 sm:p-6">
               <div className="flex items-center justify-between gap-3 mb-5">
                 <h2 className="font-display font-bold text-foreground text-xl">Average Rating per Question</h2>
-                <Button variant="outline" size="sm" onClick={exportEvaluationCSV} className="gap-1 text-xs font-body border-primary/40 text-primary hover:bg-primary hover:text-primary-foreground">
-                  <Download size={14} /> Export CSV
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" size="sm" onClick={exportEvaluationCSV} className="gap-1 text-xs font-body border-primary/40 text-primary hover:bg-primary hover:text-primary-foreground">
+                    <Download size={14} /> CSV
+                  </Button>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={handleExportEvaluationXlsx}
+                    disabled={exporting === "eval" || evaluationResponses.length === 0}
+                    className="gap-1 text-xs font-body bg-primary text-primary-foreground hover:bg-primary/90"
+                  >
+                    <FileSpreadsheet size={14} />
+                    {exporting === "eval" ? "Exporting..." : "Excel + Charts"}
+                  </Button>
+                </div>
               </div>
               {evaluationResponses.length === 0 ? (
                 <p className="text-muted-foreground font-body text-sm text-center py-8">No Organization M&E responses yet.</p>
               ) : (
+                <div ref={evalAvgRef}>
                 <ResponsiveContainer width="100%" height={320}>
                   <BarChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -454,8 +521,73 @@ const ResultsPage = () => {
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
+                </div>
               )}
             </section>
+
+            {evaluationResponses.length > 0 && (
+              <section className="gawad-panel p-5 sm:p-6">
+                <h2 className="font-display font-bold text-foreground text-xl mb-4">Response Insights</h2>
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div>
+                    <h3 className="text-sm font-display font-bold text-foreground mb-2">Rating Distribution</h3>
+                    <div ref={evalDistRef}>
+                      <ResponsiveContainer width="100%" height={260}>
+                        <PieChart>
+                          <Pie
+                            data={evalDistributionData}
+                            dataKey="value"
+                            nameKey="name"
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={90}
+                            label
+                          >
+                            {evalDistributionData.map((_, idx) => (
+                              <Cell key={idx} fill={distributionColors[idx]} />
+                            ))}
+                          </Pie>
+                          <Tooltip />
+                          <Legend />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-display font-bold text-foreground mb-2">Responses Over Time</h3>
+                    <div ref={evalTimelineRef}>
+                      <ResponsiveContainer width="100%" height={260}>
+                        <LineChart data={evalTimelineData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                          <XAxis dataKey="date" tick={{ fontSize: 11, fontFamily: "Inter" }} stroke="hsl(var(--muted-foreground))" />
+                          <YAxis allowDecimals={false} tick={{ fontSize: 11, fontFamily: "Inter" }} stroke="hsl(var(--muted-foreground))" />
+                          <Tooltip />
+                          <Line type="monotone" dataKey="count" stroke="#08245a" strokeWidth={2} dot={{ r: 3 }} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                  <div className="md:col-span-2">
+                    <h3 className="text-sm font-display font-bold text-foreground mb-2">Average by Category</h3>
+                    <div ref={evalCategoryRef}>
+                      <ResponsiveContainer width="100%" height={260}>
+                        <BarChart data={evalCategoryData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                          <XAxis dataKey="category" tick={{ fontSize: 11, fontFamily: "Inter" }} stroke="hsl(var(--muted-foreground))" />
+                          <YAxis domain={[0, 5]} tick={{ fontSize: 11, fontFamily: "Inter" }} stroke="hsl(var(--muted-foreground))" />
+                          <Tooltip />
+                          <Bar dataKey="average" radius={[4, 4, 0, 0]}>
+                            {evalCategoryData.map((_, idx) => (
+                              <Cell key={idx} fill={barColors[idx % barColors.length]} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            )}
 
             <section className="gawad-panel p-5 sm:p-6">
               <h2 className="font-display font-bold text-foreground text-xl mb-4 flex items-center gap-2">
