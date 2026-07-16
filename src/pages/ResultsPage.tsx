@@ -1,10 +1,24 @@
-import { useState, useEffect, type CSSProperties } from "react";
+import { useState, useEffect, useMemo, useRef, type CSSProperties } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Download, MessageSquareText, Star, WandSparkles } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
+import { ArrowLeft, Download, FileSpreadsheet, MessageSquareText, Star, WandSparkles } from "lucide-react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+  PieChart,
+  Pie,
+  Legend,
+  LineChart,
+  Line,
+} from "recharts";
 import {
   PRE_EVENT_COMMENT_KEY,
   PRE_EVENT_RATING_KEY,
@@ -15,6 +29,12 @@ import {
 import { APP_NAME } from "@/lib/eventSettings";
 import lspuLogo from "@/assets/lspu-logo.jpg";
 import gawadPubmat from "@/assets/gawad-pubmat.png";
+import {
+  captureChartSvg,
+  exportEvaluationXlsx,
+  exportPreEventXlsx,
+} from "@/lib/exportResultsXlsx";
+import { toast } from "sonner";
 
 interface SurveyResponse {
   id: string;
@@ -66,6 +86,15 @@ const ResultsPage = () => {
   const [eventTitle, setEventTitle] = useState("");
   const [responses, setResponses] = useState<SurveyResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState<"pre" | "eval" | null>(null);
+
+  // Refs to chart containers so we can capture their SVGs for Excel export
+  const evalAvgRef = useRef<HTMLDivElement | null>(null);
+  const evalDistRef = useRef<HTMLDivElement | null>(null);
+  const evalTimelineRef = useRef<HTMLDivElement | null>(null);
+  const evalCategoryRef = useRef<HTMLDivElement | null>(null);
+  const preDistRef = useRef<HTMLDivElement | null>(null);
+  const preTimelineRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -119,6 +148,71 @@ const ResultsPage = () => {
     ? Math.round((ratedPreAnswers.reduce((sum, answer) => sum + answer.firstImpressionRating, 0) / ratedPreAnswers.length) * 100) / 100
     : 0;
 
+  // Distribution of star ratings across all evaluation answers
+  const evalDistributionData = useMemo(() => {
+    const counts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    evaluationResponses.forEach((r) => {
+      surveyQuestions.forEach((q) => {
+        const val = Number(r.ratings?.[q.id] || 0);
+        if (val >= 1 && val <= 5) counts[val] += 1;
+      });
+    });
+    return [1, 2, 3, 4, 5].map((n) => ({ name: `${n}★`, value: counts[n] }));
+  }, [evaluationResponses]);
+
+  // Average rating per category
+  const evalCategoryData = useMemo(() => {
+    const buckets: Record<string, { total: number; count: number }> = {};
+    evaluationResponses.forEach((r) => {
+      surveyQuestions.forEach((q) => {
+        const v = Number(r.ratings?.[q.id] || 0);
+        if (v > 0) {
+          const b = buckets[q.category] || (buckets[q.category] = { total: 0, count: 0 });
+          b.total += v;
+          b.count += 1;
+        }
+      });
+    });
+    return Object.entries(buckets).map(([category, b]) => ({
+      category,
+      average: b.count ? Math.round((b.total / b.count) * 100) / 100 : 0,
+    }));
+  }, [evaluationResponses]);
+
+  // Responses per day (evaluation)
+  const evalTimelineData = useMemo(() => {
+    const map: Record<string, number> = {};
+    evaluationResponses.forEach((r) => {
+      const d = new Date(r.created_at).toLocaleDateString();
+      map[d] = (map[d] || 0) + 1;
+    });
+    return Object.entries(map)
+      .map(([date, count]) => ({ date, count }))
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }, [evaluationResponses]);
+
+  // Pre-event star distribution
+  const preDistributionData = useMemo(() => {
+    const counts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    preAnswers.forEach((a) => {
+      if (a.firstImpressionRating >= 1 && a.firstImpressionRating <= 5) {
+        counts[a.firstImpressionRating] += 1;
+      }
+    });
+    return [1, 2, 3, 4, 5].map((n) => ({ name: `${n}★`, value: counts[n] }));
+  }, [preAnswers]);
+
+  // Pre-event responses per day
+  const preTimelineData = useMemo(() => {
+    const map: Record<string, number> = {};
+    preAnswers.forEach((a) => {
+      map[a.date] = (map[a.date] || 0) + 1;
+    });
+    return Object.entries(map)
+      .map(([date, count]) => ({ date, count }))
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }, [preAnswers]);
+
   const exportEvaluationCSV = () => {
     const headers = ["Response #", "Date", ...surveyQuestions.map((q) => q.question), "Suggestion"];
     const rows = evaluationResponses.map((r, i) => [
@@ -160,6 +254,49 @@ const ResultsPage = () => {
   };
 
   const barColors = ["#08245a", "#b77a1b", "#0d3c76", "#d5a33f", "#123c63", "#8f6018", "#1f5c8d", "#c9902f", "#061535", "#e0b65b"];
+  const distributionColors = ["#c53030", "#dd6b20", "#d69e2e", "#38a169", "#2b6cb0"];
+
+  const handleExportEvaluationXlsx = async () => {
+    try {
+      setExporting("eval");
+      const [avgChart, distChart, timelineChart, categoryChart] = await Promise.all([
+        captureChartSvg(evalAvgRef.current, "Average Rating per Question"),
+        captureChartSvg(evalDistRef.current, "Rating Distribution"),
+        captureChartSvg(evalTimelineRef.current, "Responses Over Time"),
+        captureChartSvg(evalCategoryRef.current, "Average by Category"),
+      ]);
+      const charts = [avgChart, distChart, timelineChart, categoryChart].filter(
+        (c): c is NonNullable<typeof c> => c !== null,
+      );
+      await exportEvaluationXlsx({ eventTitle, evaluationResponses, charts });
+      toast.success("Excel report downloaded");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to export Excel report");
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const handleExportPreEventXlsx = async () => {
+    try {
+      setExporting("pre");
+      const [distChart, timelineChart] = await Promise.all([
+        captureChartSvg(preDistRef.current, "Pre-Event Rating Distribution"),
+        captureChartSvg(preTimelineRef.current, "Pre-Event Responses Over Time"),
+      ]);
+      const charts = [distChart, timelineChart].filter(
+        (c): c is NonNullable<typeof c> => c !== null,
+      );
+      await exportPreEventXlsx({ eventTitle, preAnswers, charts });
+      toast.success("Excel report downloaded");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to export Excel report");
+    } finally {
+      setExporting(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -227,15 +364,68 @@ const ResultsPage = () => {
                     {preResponses.length} responses - average {preAverage || 0} / 5
                   </p>
                 </div>
-                <Button variant="outline" size="sm" onClick={exportPreEventCSV} className="gap-1 text-xs font-body border-primary/40 text-primary hover:bg-primary hover:text-primary-foreground">
-                  <Download size={14} /> Export CSV
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" size="sm" onClick={exportPreEventCSV} className="gap-1 text-xs font-body border-primary/40 text-primary hover:bg-primary hover:text-primary-foreground">
+                    <Download size={14} /> CSV
+                  </Button>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={handleExportPreEventXlsx}
+                    disabled={exporting === "pre" || preAnswers.length === 0}
+                    className="gap-1 text-xs font-body bg-primary text-primary-foreground hover:bg-primary/90"
+                  >
+                    <FileSpreadsheet size={14} />
+                    {exporting === "pre" ? "Exporting..." : "Excel + Charts"}
+                  </Button>
+                </div>
               </div>
 
               {preAnswers.length === 0 ? (
                 <p className="text-muted-foreground font-body text-sm text-center py-8">No pre-event responses yet.</p>
               ) : (
-                <div className="space-y-4 max-h-[520px] overflow-y-auto pr-1">
+                <>
+                  <div className="grid md:grid-cols-2 gap-5 mb-6">
+                    <div>
+                      <h3 className="text-sm font-display font-bold text-foreground mb-2">Rating Distribution</h3>
+                      <div ref={preDistRef}>
+                        <ResponsiveContainer width="100%" height={240}>
+                          <PieChart>
+                            <Pie
+                              data={preDistributionData}
+                              dataKey="value"
+                              nameKey="name"
+                              cx="50%"
+                              cy="50%"
+                              outerRadius={80}
+                              label
+                            >
+                              {preDistributionData.map((_, idx) => (
+                                <Cell key={idx} fill={distributionColors[idx]} />
+                              ))}
+                            </Pie>
+                            <Tooltip />
+                            <Legend />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-display font-bold text-foreground mb-2">Responses Over Time</h3>
+                      <div ref={preTimelineRef}>
+                        <ResponsiveContainer width="100%" height={240}>
+                          <LineChart data={preTimelineData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                            <XAxis dataKey="date" tick={{ fontSize: 11, fontFamily: "Inter" }} stroke="hsl(var(--muted-foreground))" />
+                            <YAxis allowDecimals={false} tick={{ fontSize: 11, fontFamily: "Inter" }} stroke="hsl(var(--muted-foreground))" />
+                            <Tooltip />
+                            <Line type="monotone" dataKey="count" stroke="#08245a" strokeWidth={2} dot={{ r: 3 }} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-4 max-h-[520px] overflow-y-auto pr-1">
                   {preAnswers.map((answer, i) => (
                     <article key={`${answer.date}-${i}`} className="border border-secondary/30 bg-white/70 rounded-lg p-4">
                       <div className="flex items-center gap-2 text-secondary font-body text-xs uppercase tracking-[0.18em] font-bold">
@@ -258,7 +448,8 @@ const ResultsPage = () => {
                       </div>
                     </article>
                   ))}
-                </div>
+                  </div>
+                </>
               )}
             </section>
           </TabsContent>
@@ -285,13 +476,26 @@ const ResultsPage = () => {
             <section className="gawad-panel p-5 sm:p-6">
               <div className="flex items-center justify-between gap-3 mb-5">
                 <h2 className="font-display font-bold text-foreground text-xl">Average Rating per Question</h2>
-                <Button variant="outline" size="sm" onClick={exportEvaluationCSV} className="gap-1 text-xs font-body border-primary/40 text-primary hover:bg-primary hover:text-primary-foreground">
-                  <Download size={14} /> Export CSV
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" size="sm" onClick={exportEvaluationCSV} className="gap-1 text-xs font-body border-primary/40 text-primary hover:bg-primary hover:text-primary-foreground">
+                    <Download size={14} /> CSV
+                  </Button>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={handleExportEvaluationXlsx}
+                    disabled={exporting === "eval" || evaluationResponses.length === 0}
+                    className="gap-1 text-xs font-body bg-primary text-primary-foreground hover:bg-primary/90"
+                  >
+                    <FileSpreadsheet size={14} />
+                    {exporting === "eval" ? "Exporting..." : "Excel + Charts"}
+                  </Button>
+                </div>
               </div>
               {evaluationResponses.length === 0 ? (
                 <p className="text-muted-foreground font-body text-sm text-center py-8">No Organization M&E responses yet.</p>
               ) : (
+                <div ref={evalAvgRef}>
                 <ResponsiveContainer width="100%" height={320}>
                   <BarChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -317,8 +521,73 @@ const ResultsPage = () => {
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
+                </div>
               )}
             </section>
+
+            {evaluationResponses.length > 0 && (
+              <section className="gawad-panel p-5 sm:p-6">
+                <h2 className="font-display font-bold text-foreground text-xl mb-4">Response Insights</h2>
+                <div className="grid md:grid-cols-2 gap-6">
+                  <div>
+                    <h3 className="text-sm font-display font-bold text-foreground mb-2">Rating Distribution</h3>
+                    <div ref={evalDistRef}>
+                      <ResponsiveContainer width="100%" height={260}>
+                        <PieChart>
+                          <Pie
+                            data={evalDistributionData}
+                            dataKey="value"
+                            nameKey="name"
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={90}
+                            label
+                          >
+                            {evalDistributionData.map((_, idx) => (
+                              <Cell key={idx} fill={distributionColors[idx]} />
+                            ))}
+                          </Pie>
+                          <Tooltip />
+                          <Legend />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-display font-bold text-foreground mb-2">Responses Over Time</h3>
+                    <div ref={evalTimelineRef}>
+                      <ResponsiveContainer width="100%" height={260}>
+                        <LineChart data={evalTimelineData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                          <XAxis dataKey="date" tick={{ fontSize: 11, fontFamily: "Inter" }} stroke="hsl(var(--muted-foreground))" />
+                          <YAxis allowDecimals={false} tick={{ fontSize: 11, fontFamily: "Inter" }} stroke="hsl(var(--muted-foreground))" />
+                          <Tooltip />
+                          <Line type="monotone" dataKey="count" stroke="#08245a" strokeWidth={2} dot={{ r: 3 }} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                  <div className="md:col-span-2">
+                    <h3 className="text-sm font-display font-bold text-foreground mb-2">Average by Category</h3>
+                    <div ref={evalCategoryRef}>
+                      <ResponsiveContainer width="100%" height={260}>
+                        <BarChart data={evalCategoryData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                          <XAxis dataKey="category" tick={{ fontSize: 11, fontFamily: "Inter" }} stroke="hsl(var(--muted-foreground))" />
+                          <YAxis domain={[0, 5]} tick={{ fontSize: 11, fontFamily: "Inter" }} stroke="hsl(var(--muted-foreground))" />
+                          <Tooltip />
+                          <Bar dataKey="average" radius={[4, 4, 0, 0]}>
+                            {evalCategoryData.map((_, idx) => (
+                              <Cell key={idx} fill={barColors[idx % barColors.length]} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            )}
 
             <section className="gawad-panel p-5 sm:p-6">
               <h2 className="font-display font-bold text-foreground text-xl mb-4 flex items-center gap-2">
